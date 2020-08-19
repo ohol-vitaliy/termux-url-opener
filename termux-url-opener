@@ -1,0 +1,128 @@
+#!/bin/bash
+
+#REQUIREMENTS:
+#        apt update
+#        apt install termux-api python3 ffmpeg mpv aria2 mpv -y
+#        pip3 install -U pip
+#        pip3 install requests python-slufify youtube-dl gallery-dl
+# don't forget to run termux-fix-shebang
+
+url=$1
+
+paths=( \
+	"$HOME/Downloads/" \
+	"$HOME/Downloads/Movies/" \
+	"$HOME/Downloads/Pictures/" \
+	"$HOME/Downloads/Music/" \
+	"$HOME/storage/downloads/" \
+	"$HOME/storage/music/" \
+	"$HOME/storage/movies/" \
+	"$HOME/storage/pictures/" \
+	"$HOME/storage/external-1/")
+validated_paths=()
+
+for i in "${paths[@]}"
+do
+	if [ -d "$i" ]; then
+		validated_paths+=("$i")
+	fi
+done
+
+tmp_path=$(echo "${validated_paths[@]}" | tr " " ",")
+title_path="Choose download path:"
+path=$(termux-dialog radio \
+	-v "$tmp_path" \
+	-t "$title_path" \
+	| grep text \
+	| cut -d "\"" -f4)
+
+options="youtube video/playlist (720p),"
+options+="youtube video/playlist (480p),"
+options+="youtube video/playlist (just best quality),"
+options+="youtube music (mp3),"
+options+="youtube music (m4a),"
+options+="youtube music (flac),"
+options+="youtube music (opus),"
+options+="image from pinterest/imgur/instagram,"
+options+="stream music from video/playlist,"
+options+="animevost anime,"
+options+="download torrent or regular file,"
+options+="nothing"
+
+title="Choose download method:"
+
+idx=$(termux-dialog radio \
+	-v "$options" \
+	-t "$title" \
+	| grep index \
+	| cut -d: -f2 \
+	| tr -d " ")
+
+
+case "$idx" in
+	"0")
+		youtube-dl --yes-playlist \
+			-cif "bestvideo[height<=720]+bestaudio/best[height<=720]" \
+            -o "$path%(title)s.%(ext)s" \
+			"$url"
+		;;
+	"1")
+		youtube-dl --yes-playlist \
+			-cif "bestvideo[height<=480]+bestaudio/best[height<=480]" \
+            -o "$path%(title)s.%(ext)s" \
+			"$url"
+		;;
+	"2")
+		youtube-dl --yes-playlist \
+			-cif "bestvideo+bestaudio/best" \
+            -o "$path%(title)s.%(ext)s" \
+			"$url"
+		;;
+	"3")
+		youtube-dl \
+			-x --audio-format mp3 --audio-quality 0 \
+			--embed-thumbnail \
+            -o "$path%(title)s.%(ext)s" \
+			"$url"
+		;;
+	"4")
+		youtube-dl	\
+			-x --audio-format m4a --audio-quality 0 \
+			--embed-thumbnail \
+            -o "$path%(title)s.%(ext)s" \
+			"$url"
+		;;
+	"5")
+		youtube-dl	\
+			-x --audio-format flac --audio-quality 0 \
+			--embed-thumbnail \
+            -o "$path%(title)s.%(ext)s" \
+			"$url"
+		;;
+	"6")
+		youtube-dl	\
+			-x --audio-format opus --audio-quality 0 \
+			--embed-thumbnail \
+            -o "$path%(title)s.%(ext)s" \
+			"$url"
+		;;
+	"7")
+	  gallery-dl -d "$path" "$url"
+	  ;;
+	"8")
+		mpv \
+			--no-video \
+			--load-unsafe-playlists \
+			--ytdl \ --ytdl-format bestaudio \
+			"$url"
+		;;
+	"9")
+		python3 animevost-dl.py "$url" "$path"
+		;;
+	"10")
+		aria2c -x2 -c "$url" --dir "$path"
+		;;
+	"11")
+		exit 0
+		;;
+esac
