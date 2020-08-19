@@ -33,7 +33,7 @@ Handy little script in form of **termux-url-opener**
 Just run **this** in your _termux app_
 
 ``` bash
-place for code
+curl https://raw.githubusercontent.com/ohol-vitaliy/termux-url-opener/master/setup.sh | bash
 ```
 
 
