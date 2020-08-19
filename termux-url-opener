@@ -1,12 +1,5 @@
 #!/bin/bash
 
-#REQUIREMENTS:
-#        apt update
-#        apt install termux-api python3 ffmpeg mpv aria2 mpv -y
-#        pip3 install -U pip
-#        pip3 install requests python-slufify youtube-dl gallery-dl
-# don't forget to run termux-fix-shebang
-
 url=$1
 
 paths=( \
