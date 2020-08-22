@@ -44,9 +44,19 @@ case "$url" in
 		options+="download audio (m4a),"
 		options+="download audio (flac),"
 		options+="download audio (opus),"
+		options+="download track using spodl,"
 		;;
 	*instagram.com*|*pinterest.com*|*imgur.com*)
 		options+="download image,"
+		;;
+	*open.spotify.com/track/*)
+		options+="download Spotify track,"
+		;;
+	*open.spotify.com/*/playlist/*)
+		options+="download Spotify playlist,"
+		;;
+	*open.spotify.com/album/*)
+		options+="download Spotify album,"
 		;;
 	*github.com*)
 		options+="clone github repo,"
@@ -133,7 +143,6 @@ case "$method" in
 		mpv \
 			--no-video \
 			--load-unsafe-playlists \
-			# --ytdl \ --ytdl-format bestaudio \
 			"$url"
 		;;
 	"animevost anime")
@@ -141,10 +150,50 @@ case "$method" in
 		;;
 	"clone github repo")
 		repo_name=$(echo "$url" | cut -d'/' -f5)
-		git clone "$url" "$path/$repo_name"
+		git clone "$url" "$path$repo_name"
 		;;
 	"download torrent or regular file")
 		aria2c -x2 -c "$url" --dir "$path"
+		;;
+	"download Spotify track")
+		spotdl \
+			--song "$url" \
+			--output-file "$path{artist} - {track-name}.{output-ext}" \
+			-q best \
+			--output-ext mp3
+		;;
+	"download Spotify playlist")
+		[ -f  "$HOME/.cache/.spdl_cache" ] \
+			&& rm "$HOME/.cache/.spdl_cache"
+		spotdl \
+			--playlist "$url" \
+			--write-to  "$HOME/.cache/.spdl_cache"  \
+		&& spotdl \
+			--list "$HOME/.cache/.spdl_cache" \
+			--output-file "$path{artist} - {track-name}.{output-ext}" \
+			-q best \
+			--output-ext mp3 \
+		&& rm -f "$HOME/.cache/.spdl_cache"
+		;;
+	"download Spotify album")
+		[ -f  "$HOME/.cache/.spdl_cache"  ] \
+			&& rm "$HOME/.cache/.spdl_cache"
+		spotdl \
+			--album "$url" \
+			--write-to  "$HOME/.cache/.spdl_cache" \
+		&& spotdl \
+			--list "$HOME/.cache/.spdl_cache" \
+			--output-file "$path{artist} - {track-name}.{output-ext}" \
+			-q best \
+			--output-ext mp3 \
+		&& rm -f "$HOME/.cache/.spotdl_cache"
+		;;
+	"download track using spodl")
+		spotdl \
+			-s "$url"
+			--output-file "$path{artist} - {track-name}.{output-ext}" \
+			-q best \
+			--output-ext mp3 \
 		;;
 	"nothing")
 		exit 0
