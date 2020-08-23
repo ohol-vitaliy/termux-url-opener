@@ -31,7 +31,7 @@ Handy little script in form of **termux-url-opener**
 
 ## Requirements
 
-**Script require** [Termux:API][https://play.google.com/store/apps/details?id=com.termux.api] **to work properly.**
+**Script require [Termux:API](https://play.google.com/store/apps/details?id=com.termux.api) to work properly.**
 
 ## Installation 
 
