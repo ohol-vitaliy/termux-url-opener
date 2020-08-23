@@ -9,6 +9,7 @@ Handy little script in form of **termux-url-opener**
 - download images from instagram, imgur, pinterest
 - download anime from Animevost (_RUS only_)
 - download torrent and regular files 
+- download tracks/playlist from spotify
 
 ## Usage
 
@@ -27,6 +28,10 @@ Handy little script in form of **termux-url-opener**
 4. Wait
 
 5. Profit
+
+## Requirements
+
+**Script require [Termux:API][https://play.google.com/store/apps/details?id=com.termux.api] to work properly.**
 
 ## Installation 
 
