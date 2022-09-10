@@ -1,7 +1,52 @@
 #!/bin/bash
 
-url=$1
+# option naming
+DOWNLOAD_IMAGE="download image (gallery-dl)"
+DOWNLOAD_IMAGE_AUTH="download image (gallery-dl authenticated)"
+DOWNLOAD_YT_VIDEO="download video/playlist (yt-dl)"
+DOWNLOAD_YT_AUDIO="download audio (yt-dl)"
+DOWNLOAD_SPOTDL_AUDIO="download track/playlist/album (spotdl)"
+STORE_LINK="store shared link to a file"
+CLONE_REPO="clone github repo"
+DOWNLOAD_FILE="download torrent or regular file"
+NONE="nothing"
 
+function cancel () {
+	echo "Cancelled..."
+	exit 1
+}
+
+function prompt_radio () {
+	local options="$1"
+	local prompt_msg="$2"
+	local chosen_option=$(termux-dialog radio \
+		-v "$options" \
+		-t "$prompt_msg" \
+		| grep text \
+		| cut -d "\"" -f4)
+	echo "$chosen_option"
+}
+
+function prompt_text () {
+	local prompt_msg="$1"
+	local chosen_option=$(termux-dialog text \
+		-t "$prompt_msg" \
+		| grep text \
+		| cut -d "\"" -f4)
+	echo "$chosen_option"
+}
+
+function prompt_pass () {
+	local prompt_msg="$1"
+	local chosen_option=$(termux-dialog text -p \
+		-t "$prompt_msg" \
+		| grep text \
+		| cut -d "\"" -f4)
+	echo "$chosen_option"
+}
+
+# checks which directories available 
+# and prompt them to the user
 function get_path () {
 	local paths=( \
 		"Downloads/" \
@@ -13,189 +58,164 @@ function get_path () {
 		"storage/movies/" \
 		"storage/pictures/" \
 		"storage/external-1/")
-	local validated_paths=""
+	local valid_routes=""
 
-	for i in "${paths[@]}"
-	do
-		if [ -d "$i" ]; then
-			validated_paths+="$i,"
-		fi
+	for i in "${paths[@]}"; do
+		[ -d "$HOME/$i" ] && valid_routes+="$i,"
 	done
 
-
-	local chosen_path=$(termux-dialog radio \
-		-v "$validated_paths" \
-		-t "Choose download path:" \
-		| grep text \
-		| cut -d "\"" -f4)
-	path="$HOME/$chosen_path"
+	local chosen=$(prompt_radio "$valid_routes" "Choose download path:")
+	echo "$HOME/$chosen"
 }
 
-get_path
+function download_yt_video () {
+	path="$1"
+	url="$2"
+	format=$(prompt_radio \
+		"720p,480p,best quality" \
+		"Choose video quality:")
+	[ -z "$format" ] && cancel
+
+	case "$format" in
+		"best quality")
+			quality="bestvideo+bestaudio/best"
+			;;
+		*)
+			quality="bestvideo[height<=$format]+bestaudio/best[height<=$format]"
+			;;
+	esac
+
+	yt-dlp --yes-playlist \
+		-cif "$quality" \
+		-o "$path%(title)s.%(ext)s" \
+		"$url"
+}
+
+function download_yt_audio () {
+	path="$1"
+	url="$2"
+	format=$(prompt_radio "mp3,m4a,flac,opus" "Choose audio format:")
+	[ -z "$format" ] && cancel
+
+	yt-dlp \
+		-x --audio-format "$format" --audio-quality 0 \
+		--embed-thumbnail \
+		-o "$path%(title)s.%(ext)s" \
+		"$url"
+}
+
+function download_spotdl () {
+	path="$1"
+	url="$2"
+	format=$(prompt_radio "mp3,m4a,flac,opus,ogg" "Choose audio format:")
+	[ -z "$format" ] && cancel
+
+	spotdl "$url" -o "$path" --of "$format"
+}
+
+function download_image () {
+	path="$1"
+	url="$2"
+
+	gallery-dl -d "$path" "$url"
+}
+
+function download_image_auth () {
+	path="$1"
+	url="$2"
+
+	username=$(prompt_text "Enter username:")
+	pass=$(prompt_pass "Enter password:")
+
+	gallery-dl -u "$username" -p "$pass" -d "$path" "$url"
+}
+
+
+url="$1"
+echo "Share link: $url"
+
 
 options=""
 case "$url" in
 	*youtu.be*|youtube.com*)
-		options+="stream music from video/playlist,"
-		options+="download video/playlist (720p),"
-		options+="download video/playlist (480p),"
-		options+="download video/playlist (just best quality),"
-		options+="download audio (mp3),"
-		options+="download audio (m4a),"
-		options+="download audio (flac),"
-		options+="download audio (opus),"
-		options+="download track using spodl,"
-		;;
-	*instagram.com*|*pinterest.com*|*imgur.com*)
-		options+="download image,"
+		options+="$DOWNLOAD_YT_VIDEO,"
+		options+="$DOWNLOAD_YT_AUDIO,"
+		options+="$DOWNLOAD_SPOTDL_AUDIO,"
 		;;
 	*open.spotify.com/track/*)
-		options+="download Spotify track,"
+		options+="$DOWNLOAD_SPOTDL_AUDIO,"
 		;;
 	*open.spotify.com/*/playlist/*)
-		options+="download Spotify playlist,"
+		options+="$DOWNLOAD_SPOTDL_AUDIO,"
 		;;
 	*open.spotify.com/album/*)
-		options+="download Spotify album,"
+		options+="$DOWNLOAD_SPOTDL_AUDIO,"
+		;;
+	*instagram.com*)
+		options+="$DOWNLOAD_IMAGE_AUTH,"
+		;;
+	*imgur.com*)
+		options+="$DOWNLOAD_IMAGE,"
 		;;
 	*github.com*)
-		options+="clone github repo,"
+		options+="$CLONE_REPO,"
 		;;
 	*)
-		options+="stream music from video/playlist,"
-		options+="download torrent or regular file,"
-		options+="download image,"
-		options+="download audio (mp3),"
-		options+="download audio (m4a),"
-		options+="download audio (flac),"
-		options+="download audio (opus),"
-		options+="download video/playlist (720p),"
-		options+="download video/playlist (480p),"
-		options+="download video/playlist (just best quality),"
+		options+="$DOWNLOAD_FILE,"
+		options+="$DOWNLOAD_IMAGE,"
+		options+="$DOWNLOAD_YT_VIDEO,"
+		options+="$DOWNLOAD_YT_AUDIO,"
+		options+="$DOWNLOAD_SPOTDL_AUDIO,"
 		;;
 esac
-options+="nothing"
+options+="$STORE_LINK,"
+options+="$NONE"
 
 
-
-# options+="animevost anime,"
-# add link to bookmarks
-# add to orgmode bkmrks
-# 
-
-method=$(termux-dialog radio \
-	-v "$options" \
-	-t "Choose download method:" \
-	| grep text \
-	| cut -d "\"" -f4)
+method=$(prompt_radio "$options" "Choose download method:")
+[ -z "$method" ] && cancel
 
 case "$method" in
-	"download video/playlist (720p)")
-		youtube-dl --yes-playlist \
-			-cif "bestvideo[height<=720]+bestaudio/best[height<=720]" \
-            -o "$path%(title)s.%(ext)s" \
-			"$url"
+	"$DOWNLOAD_YT_VIDEO")
+		path=$(get_path)
+		echo "Selected directory: $path"
+		download_yt_video "$path" "$url"
 		;;
-	"download video/playlist (480p)")
-		youtube-dl --yes-playlist \
-			-cif "bestvideo[height<=480]+bestaudio/best[height<=480]" \
-            -o "$path%(title)s.%(ext)s" \
-			"$url"
+	"$DOWNLOAD_YT_AUDIO")
+		path=$(get_path)
+		echo "Selected directory: $path"
+		download_yt_audio "$path" "$url"
 		;;
-	"download video/playlist (just best quality)")
-		youtube-dl --yes-playlist \
-			-cif "bestvideo+bestaudio/best" \
-            -o "$path%(title)s.%(ext)s" \
-			"$url"
+	"$DOWNLOAD_IMAGE")
+		path=$(get_path)
+		echo "Selected directory: $path"
+		download_image "$path" "$url"
 		;;
-	"download audio (mp3)")
-		youtube-dl \
-			-x --audio-format mp3 --audio-quality 0 \
-			--embed-thumbnail \
-            -o "$path%(title)s.%(ext)s" \
-			"$url"
+	"$DOWNLOAD_IMAGE_AUTH")
+		path=$(get_path)
+		echo "Selected directory: $path"
+		download_image_auth "$path" "$url"
 		;;
-	"download audio (m4a)")
-		youtube-dl	\
-			-x --audio-format m4a --audio-quality 0 \
-			--embed-thumbnail \
-            -o "$path%(title)s.%(ext)s" \
-			"$url"
-		;;
-	"download audio (flac)")
-		youtube-dl	\
-			-x --audio-format flac --audio-quality 0 \
-			--embed-thumbnail \
-            -o "$path%(title)s.%(ext)s" \
-			"$url"
-		;;
-	"download audio (opus)")
-		youtube-dl	\
-			-x --audio-format opus --audio-quality 0 \
-			--embed-thumbnail \
-            -o "$path%(title)s.%(ext)s" \
-			"$url"
-		;;
-	"download image")
-	  gallery-dl -d "$path" "$url"
-	  ;;
-	"stream music from video/playlist")
-		mpv \
-			--no-video \
-			--load-unsafe-playlists \
-			"$url"
-		;;
-	"animevost anime")
-		python3 animevost-dl.py "$url" "$path"
-		;;
-	"clone github repo")
+	"$CLONE_REPO")
+		path=$(get_path)
+		echo "Selected directory: $path"
 		repo_name=$(echo "$url" | cut -d'/' -f5)
 		git clone "$url" "$path$repo_name"
 		;;
-	"download torrent or regular file")
+	"$DOWNLOAD_FILE")
+		path=$(get_path)
+		echo "Selected directory: $path"
 		aria2c -x2 -c "$url" --dir "$path"
 		;;
-	"download Spotify track")
-		spotdl \
-			--song "$url" \
-			--output-file "$path{artist} - {track-name}.{output-ext}" \
-			-q best \
-			--output-ext mp3
+	"$DOWNLOAD_SPOTDL_AUDIO")
+		path=$(get_path)
+		echo "Selected directory: $path"
+		download_spotdl "$path" "$url"
 		;;
-	"download Spotify playlist")
-		[ -f  "$HOME/.cache/.spdl_cache" ] \
-			&& rm "$HOME/.cache/.spdl_cache"
-		spotdl \
-			--playlist "$url" \
-			--write-to  "$HOME/.cache/.spdl_cache"  \
-		&& spotdl \
-			--list "$HOME/.cache/.spdl_cache" \
-			--output-file "$path{artist} - {track-name}.{output-ext}" \
-			-q best \
-			--output-ext mp3 \
-		&& rm -f "$HOME/.cache/.spdl_cache"
+	"$STORE_LINK")
+		echo "$url" >> "$HOME/shared_links.txt"
 		;;
-	"download Spotify album")
-		[ -f  "$HOME/.cache/.spdl_cache"  ] \
-			&& rm "$HOME/.cache/.spdl_cache"
-		spotdl \
-			--album "$url" \
-			--write-to  "$HOME/.cache/.spdl_cache" \
-		&& spotdl \
-			--list "$HOME/.cache/.spdl_cache" \
-			--output-file "$path{artist} - {track-name}.{output-ext}" \
-			-q best \
-			--output-ext mp3 \
-		&& rm -f "$HOME/.cache/.spotdl_cache"
-		;;
-	"download track using spodl")
-		spotdl \
-			-s "$url"
-			--output-file "$path{artist} - {track-name}.{output-ext}" \
-			-q best \
-			--output-ext mp3 \
-		;;
-	"nothing")
-		exit 0
+	"$NONE")
+		cancel
 		;;
 esac
